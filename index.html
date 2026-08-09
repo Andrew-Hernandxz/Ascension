@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ascension Command Center</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --bg:#0F1115; --panel:#171A21; --panel-2:#1D2129; --border:#262B35;
+    --text:#E8E6E1; --muted:#8B8F98; --gold:#C9A24B; --gold-dim:#8A7135;
+    --green:#4FA97D; --red:#D1543E; --blue:#5B8DEF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  #login-screen{height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 20% 20%, rgba(201,162,75,0.08), transparent 40%),
+               radial-gradient(circle at 80% 80%, rgba(91,141,239,0.06), transparent 45%), var(--bg);}
+  .login-card{width:380px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:36px 32px; text-align:center;}
+  .login-card .rung{width:44px;height:4px;background:var(--gold);margin:0 auto 18px;border-radius:2px;}
+  .login-card h1{font-size:22px; margin:0 0 6px;}
+  .login-card p{color:var(--muted); font-size:13px; margin:0 0 26px;}
+  #access-code{width:100%; padding:13px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2);
+    color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:15px; letter-spacing:2px; text-align:center; text-transform:uppercase;}
+  #access-code:focus{outline:none; border-color:var(--gold);}
+  #login-btn{width:100%; margin-top:14px; padding:13px; border:none; border-radius:8px; background:var(--gold);
+    color:#1a1506; font-weight:600; font-size:14px; cursor:pointer; transition:filter .15s;}
+  #login-btn:hover{filter:brightness(1.08);}
+  #login-btn:disabled{opacity:0.6; cursor:wait;}
+  #login-error{color:var(--red); font-size:12px; margin-top:12px; min-height:14px;}
+  .demo-codes{margin-top:22px; padding-top:18px; border-top:1px solid var(--border); text-align:left;}
+  .demo-codes div{font-size:11px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between;}
+  .demo-codes span.mono{color:var(--gold);}
+  #mode-tag{margin-top:14px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px;}
+
+  #app{display:none; height:100vh;}
+  #app.active{display:flex;}
+  #sidebar{width:230px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:22px 16px;}
+  #sidebar .brand{display:flex; align-items:center; gap:10px; padding:0 6px 22px; border-bottom:1px solid var(--border); margin-bottom:16px;}
+  #sidebar .brand .mark{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));}
+  #sidebar .brand .name{font-size:14px; font-weight:600;}
+  #sidebar .brand .sub{font-size:10px; color:var(--muted);}
+  .nav-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:var(--muted);
+    font-size:13.5px; cursor:pointer; margin-bottom:2px; font-weight:500;}
+  .nav-item:hover{background:var(--panel-2); color:var(--text);}
+  .nav-item.active{background:var(--panel-2); color:var(--gold);}
+  .nav-item .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.6;}
+  #sidebar .footer{margin-top:auto; padding-top:16px; border-top:1px solid var(--border);}
+  #role-badge{font-size:10px; text-transform:uppercase; letter-spacing:0.6px; padding:5px 9px; border-radius:5px; display:inline-block; margin-bottom:10px; font-weight:600;}
+  #signout{font-size:12px; color:var(--muted); cursor:pointer;}
+  #signout:hover{color:var(--red);}
+
+  #main{flex:1; overflow-y:auto; padding:28px 34px;}
+  .page{display:none;} .page.active{display:block;}
+  .page-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px;}
+  .page-head h2{font-size:21px; margin:0;}
+  .page-head p{color:var(--muted); font-size:13px; margin:4px 0 0;}
+  .btn{padding:9px 16px; border:none; border-radius:8px; background:var(--gold); color:#1a1506; font-weight:600; font-size:13px; cursor:pointer;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:var(--panel-2); color:var(--text); border:1px solid var(--border);}
+
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:26px;}
+  .kpi{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px;}
+  .kpi .label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;}
+  .kpi .value{font-size:26px; font-weight:600; margin-top:8px; font-family:'Space Grotesk',sans-serif;}
+  .kpi .value.gold{color:var(--gold);} .kpi .value.green{color:var(--green);} .kpi .value.red{color:var(--red);}
+
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px;}
+  .panel h3{font-size:14px; margin:0 0 14px; display:flex; justify-content:space-between; align-items:center;}
+  .panel h3 .filter-row{display:flex; gap:8px;}
+  select, input.field{background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 10px; font-size:12px; font-family:'Inter',sans-serif;}
+  select:focus, input.field:focus{outline:none; border-color:var(--gold);}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; padding:10px 8px; border-bottom:1px solid var(--border);}
+  td{padding:11px 8px; border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  tr.overdue td{background:rgba(209,84,62,0.06);}
+
+  .pill{padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; display:inline-block;}
+  .pill.new{background:rgba(91,141,239,0.15); color:var(--blue);}
+  .pill.contacted,.pill.followup,.pill.partial,.pill.stale{background:rgba(201,162,75,0.15); color:var(--gold);}
+  .pill.won,.pill.paid{background:rgba(79,169,125,0.15); color:var(--green);}
+  .pill.lost,.pill.unpaid,.pill.over{background:rgba(209,84,62,0.15); color:var(--red);}
+
+  .tier-track{display:flex; align-items:center; gap:6px;}
+  .tier-track .seg{flex:1; height:6px; border-radius:3px; background:var(--panel-2); position:relative; overflow:hidden;}
+  .tier-track .seg .fill{position:absolute; left:0; top:0; bottom:0; background:var(--gold); border-radius:3px;}
+  .tier-label{font-size:11px; color:var(--muted); width:44px; flex-shrink:0; text-align:right;}
+
+  /* Modal */
+  #modal-backdrop{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; align-items:center; justify-content:center;}
+  #modal-backdrop.active{display:flex;}
+  .modal{width:400px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:26px;}
+  .modal h3{margin:0 0 18px; font-size:16px;}
+  .modal label{display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 5px;}
+  .modal input, .modal select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:13px; font-family:'Inter',sans-serif;}
+  .modal .actions{display:flex; gap:10px; margin-top:22px;}
+  .modal .actions .btn{flex:1;}
+
+  #toast{position:fixed; bottom:24px; right:24px; background:var(--panel-2); border:1px solid var(--border); border-left:3px solid var(--green);
+    padding:12px 18px; border-radius:8px; font-size:13px; display:none; z-index:60;}
+  #toast.error{border-left-color:var(--red);}
+
+  /* ---------- MOBILE (phone browsers) ---------- */
+  input, select, button{font-size:16px;} /* prevents iOS zoom-on-focus */
+  @media (max-width: 820px){
+    #app.active{flex-direction:column; height:100dvh;}
+    #sidebar{width:100%; flex-direction:column; padding:10px 12px 6px; border-right:none; border-bottom:1px solid var(--border);}
+    #sidebar .brand{padding:0 4px 8px; margin-bottom:8px; border-bottom:none;}
+    #sidebar nav-wrap{display:block;}
+    #nav-scroll{display:flex; overflow-x:auto; gap:4px; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:6px;}
+    #nav-scroll::-webkit-scrollbar{display:none;}
+    .nav-item{flex:0 0 auto; padding:8px 13px; font-size:13px; white-space:nowrap;}
+    #sidebar .footer{margin-top:0; padding-top:8px; border-top:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;}
+    #role-badge{margin-bottom:0;}
+    #user-name{display:none;}
+    #main{padding:16px 14px 40px;}
+    .page-head{flex-direction:column; align-items:flex-start; gap:10px;}
+    .page-head .btn{align-self:stretch; text-align:center;}
+    .kpi-row{grid-template-columns:repeat(2,1fr); gap:10px;}
+    .kpi{padding:14px;}
+    .kpi .value{font-size:21px;}
+    .panel{padding:14px; overflow-x:auto;}
+    .panel table{min-width:640px;}
+    .modal{width:92vw; max-height:86dvh; overflow-y:auto;}
+    .login-card{width:92vw; padding:28px 22px;}
+    #toast{left:14px; right:14px; bottom:14px; text-align:center;}
+  }
+</style>
+</head>
+<body>
+
+<!-- PUBLIC APPLY SCREEN — reachable at  yoursite.vercel.app/#apply -->
+<div id="apply-screen" style="display:none; min-height:100vh; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 30% 20%,rgba(201,162,75,0.08),transparent 45%),var(--bg);">
+  <div class="login-card" style="text-align:left;">
+    <div class="rung" style="margin-left:0;"></div>
+    <h1 style="text-align:left;">Start Your Ascension</h1>
+    <p style="text-align:left;">Drop your info and the team will reach out within 24 hours.</p>
+    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 5px;">Name</label>
+    <input id="f-name" class="field" style="width:100%;padding:11px 13px;font-size:14px;" placeholder="Full name">
+    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 5px;">Email</label>
+    <input id="f-email" class="field" type="email" style="width:100%;padding:11px 13px;font-size:14px;" placeholder="you@email.com">
+    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 5px;">Phone (optional)</label>
+    <input id="f-phone" class="field" style="width:100%;padding:11px 13px;font-size:14px;" placeholder="">
+    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 5px;">Where did you find us?</label>
+    <select id="f-source" class="field" style="width:100%;padding:11px 13px;font-size:14px;">
+      <option>IG DM</option><option>TikTok</option><option>YouTube</option><option>Discord</option><option>Referral</option><option>Other</option>
+    </select>
+    <input id="f-website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;" placeholder="website">
+    <button id="f-submit" onclick="submitApply()" style="width:100%;margin-top:22px;padding:13px;border:none;border-radius:8px;background:var(--gold);color:#1a1506;font-weight:600;font-size:14px;cursor:pointer;">Apply Now</button>
+    <div id="apply-msg" style="font-size:13px;margin-top:14px;min-height:16px;text-align:center;"></div>
+  </div>
+</div>
+
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="rung"></div>
+    <h1>Ascension Command Center</h1>
+    <p>Enter your access code to sign in</p>
+    <input id="access-code" class="mono" placeholder="ACCESS CODE" maxlength="20" autocomplete="off">
+    <button id="login-btn" onclick="attemptLogin()">Sign In</button>
+    <div id="login-error"></div>
+    <div class="demo-codes" id="demo-codes">
+      <div><span>Sales Rep (Marcus)</span><span class="mono">REP-MRK7</span></div>
+      <div><span>Sales Rep (Jordan)</span><span class="mono">REP-JDN3</span></div>
+      <div><span>Sales Manager</span><span class="mono">MGR-9XLQ</span></div>
+      <div><span>Owner / All-Seeing Eye</span><span class="mono">OWNER-EYE1</span></div>
+    </div>
+    <div id="mode-tag"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div><div class="name">Ascension</div><div class="sub">Command Center</div></div>
+    </div>
+    <div id="nav-scroll">
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="dot"></span>Dashboard</div>
+    <div class="nav-item" data-page="leads" onclick="showPage('leads')"><span class="dot"></span>Leads</div>
+    <div class="nav-item" data-page="payments" onclick="showPage('payments')"><span class="dot"></span>Payments</div>
+    <div class="nav-item" data-page="progress" onclick="showPage('progress')"><span class="dot"></span>Course Progress</div>
+    <div class="nav-item" data-page="dm" onclick="showPage('dm')"><span class="dot"></span>DM Outreach</div>
+    <div class="nav-item" data-page="auto" onclick="showPage('auto')"><span class="dot"></span>DM Automation</div>
+    <div class="nav-item" data-page="team" data-min-role="MANAGER" onclick="showPage('team')"><span class="dot"></span>Sales Team</div>
+    <div class="nav-item" data-page="admin" data-min-role="OWNER" onclick="showPage('admin')"><span class="dot"></span>Admin / System</div>
+    </div>
+    <div class="footer">
+      <div id="role-badge"></div>
+      <div id="user-name" style="font-size:13px;font-weight:600;margin-bottom:2px;"></div>
+      <div id="signout" onclick="signOut()">Sign out</div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="page active" id="page-dashboard">
+      <div class="page-head">
+        <div><h2>Dashboard</h2><p id="dash-sub"></p></div>
+        <button class="btn" onclick="openAddLead()">+ Add Lead</button>
+      </div>
+      <div class="kpi-row" id="kpi-row"></div>
+      <div class="panel">
+        <h3>Needs Attention <span style="font-weight:400;color:var(--muted);font-size:11px;">auto-flagged: overdue payments &amp; leads untouched 5+ days</span></h3>
+        <table id="attention-table"><thead><tr><th>Who</th><th>Flag</th><th>Detail</th><th>Rep</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Recent Leads</h3>
+        <table id="recent-leads-table"><thead><tr><th>Name</th><th>Source</th><th>Status</th><th>Rep</th><th>Date</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-leads">
+      <div class="page-head">
+        <div><h2>Leads</h2><p id="leads-sub"></p></div>
+        <button class="btn" onclick="openAddLead()">+ Add Lead</button>
+      </div>
+      <div class="panel">
+        <h3>All Leads
+          <div class="filter-row">
+            <select id="leads-status-filter" onchange="renderLeads()">
+              <option value="">All statuses</option><option>New</option><option>Contacted</option>
+              <option>Follow-up</option><option>Closed Won</option><option>Closed Lost</option>
+            </select>
+          </div>
+        </h3>
+        <table id="leads-table"><thead><tr><th>Name</th><th>Contact</th><th>Source</th><th>Status</th><th>Rep</th><th>Date Added</th><th>Next Action</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-payments">
+      <div class="page-head"><div><h2>Payments</h2><p>Owed amounts auto-calculated. Overdue rows flagged automatically.</p></div></div>
+      <div class="kpi-row" id="payments-kpi-row"></div>
+      <div class="panel">
+        <h3>Payment Status</h3>
+        <table id="payments-table"><thead><tr><th>Student</th><th>Tier</th><th>Total</th><th>Paid</th><th>Refunded</th><th>Owed</th><th>Status</th><th>Next Due</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-progress">
+      <div class="page-head"><div><h2>Course Progress</h2><p>Where each paid student sits in the program. You and managers set the percentage; reps see it read-only.</p></div></div>
+      <div class="panel">
+        <h3>Ascension Ladder</h3>
+        <table id="progress-table"><thead><tr><th>Student</th><th>Tier</th><th>Progress</th><th>Set %</th><th>Last Updated</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-dm">
+      <div class="page-head">
+        <div><h2>DM Outreach</h2><p id="dm-sub">Every message sent, every reply, every booking — visible to the whole chain</p></div>
+        <button class="btn" onclick="openAddDM()">+ Log DM</button>
+      </div>
+      <div class="kpi-row" id="dm-kpi-row"></div>
+      <div class="panel">
+        <h3>Outreach Log
+          <div class="filter-row">
+            <select id="dm-status-filter" onchange="renderDM()">
+              <option value="">All statuses</option><option>Sent</option><option>Replied</option>
+              <option>In Conversation</option><option>Call Booked</option><option>Dead</option>
+            </select>
+          </div>
+        </h3>
+        <table id="dm-table"><thead><tr><th>Prospect</th><th>Platform</th><th>Handle</th><th>Status</th><th>Rep</th><th>Sent</th><th>Last Follow-up</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-auto">
+      <div class="page-head">
+        <div><h2>DM Automation</h2><p>Powered by OpenReply — comment-to-DM through Meta's official API. Synced from the automation server.</p></div>
+      </div>
+      <div class="kpi-row" id="auto-kpi-row"></div>
+      <div class="panel">
+        <h3>The Funnel <span style="font-weight:400;color:var(--muted);font-size:11px;">clicks are the closest thing to "opened" Meta allows anyone to track</span></h3>
+        <div id="auto-funnel" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+      <div class="panel">
+        <h3>Campaigns</h3>
+        <table id="auto-table"><thead><tr><th>Campaign</th><th>Keywords</th><th>Active</th><th>DMs Sent</th><th>Failed</th><th>Link Clicks</th><th>CTR</th><th>Last Synced</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Automation → Client Conversions by Ticket</h3>
+        <table id="auto-tier-table"><thead><tr><th>Ticket</th><th>Offer</th><th>Clients from Automation</th><th>Revenue Collected</th><th>Outstanding</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-team">
+      <div class="page-head"><div><h2>Sales Team</h2><p>Computed live from the Leads and Payments data — no manual updating.</p></div></div>
+      <div class="panel">
+        <h3>Rep Performance</h3>
+        <table id="team-table"><thead><tr><th>Rep</th><th>Leads Assigned</th><th>Closed Won</th><th>Conversion</th><th>Net Revenue</th><th>Outstanding</th><th id="comm-head">Commission</th><th>DMs Sent</th><th>Reply Rate</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="page" id="page-admin">
+      <div class="page-head"><div><h2>Admin / System</h2><p>All-seeing eye — full financials, access codes, and system control</p></div></div>
+      <div class="kpi-row" id="admin-kpi-row"></div>
+      <div class="panel">
+        <h3>Access Codes</h3>
+        <table id="codes-table"><thead><tr><th>Code</th><th>Assigned To</th><th>Role</th><th>Status</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Full Financial Ledger</h3>
+        <table id="ledger-table"><thead><tr><th>Student</th><th>Rep Credited</th><th>Tier</th><th>Total</th><th>Paid</th><th>Owed</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>Activity Log <span style="font-weight:400;color:var(--muted);font-size:11px;">every login, edit, and denied attempt — the paper trail</span></h3>
+        <table id="audit-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th><th>Result</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD LEAD MODAL -->
+<div id="modal-backdrop">
+  <div class="modal">
+    <h3>Add Lead</h3>
+    <label>Name</label><input id="nl-name" placeholder="Full name">
+    <label>Email</label><input id="nl-email" placeholder="email@example.com">
+    <label>Phone (optional)</label><input id="nl-phone" placeholder="">
+    <label>Source</label>
+    <select id="nl-source"><option>IG DM</option><option>TikTok</option><option>YouTube</option><option>Discord</option><option>Referral</option><option>Other</option></select>
+    <div id="nl-rep-wrap" style="display:none;"><label>Assign to Rep</label><select id="nl-rep"></select></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeAddLead()">Cancel</button>
+      <button class="btn" id="nl-save" onclick="saveLead()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ---- CONFIG (inlined — your live Google Sheet API) ---- */
+window.ASCENSION_CONFIG = {
+  SHEETS_API_URL: "https://script.google.com/macros/s/AKfycbxTVPHJTB1bCNOnJi2-ZHWD3WYEz7zD0cBJc85rFsjNrlKH8L-V5Gda4IDKrttmAMm5mQ/exec",
+  FORM_KEY: "ASC-FORM-x7Q2mK9pL4vT"
+};
+</script>
+<script>
+/* Config is inlined above — this file is fully self-contained. */
+const SHEETS_API_URL = window.ASCENSION_CONFIG.SHEETS_API_URL;
+const USE_LIVE_DATA = !SHEETS_API_URL.includes("PASTE_");
+
+const ROLE_RANK  = { SALES_REP:1, MANAGER:2, OWNER:3 };
+const ROLE_LABEL = { SALES_REP:"Sales Rep Access", MANAGER:"Manager Access", OWNER:"Owner — All-Seeing Eye" };
+const ROLE_COLOR = { SALES_REP:"#5B8DEF", MANAGER:"#C9A24B", OWNER:"#4FA97D" };
+const STALE_DAYS = 5;
+const COMMISSION_RATE = 0.10; // 10% of net collected revenue — change to your deal
+
+/* ---------- DEMO DATA (used only when USE_LIVE_DATA is false) ---------- */
+const DEMO_CODES = {
+  "REP-MRK7":{role:"SALES_REP",name:"Marcus T.",repKey:"Marcus"},
+  "REP-JDN3":{role:"SALES_REP",name:"Jordan P.",repKey:"Jordan"},
+  "MGR-9XLQ":{role:"MANAGER",name:"Sales Manager"},
+  "OWNER-EYE1":{role:"OWNER",name:"Andrew / Erick"}
+};
+let DB = {
+  leads:[
+    {LeadID:1,Name:"Tyler Reyes",Email:"tyler.r@mail.com",Source:"IG DM",Status:"Closed Won",AssignedRep:"Marcus",DateAdded:"2026-06-28",LastUpdated:"2026-07-15"},
+    {LeadID:2,Name:"Dana Kowalski",Email:"dana.k@mail.com",Source:"TikTok",Status:"Contacted",AssignedRep:"Jordan",DateAdded:"2026-07-02",LastUpdated:"2026-07-06",NextAction:"2026-07-28"},
+    {LeadID:3,Name:"Sam Whitfield",Email:"sam.w@mail.com",Source:"Discord",Status:"Closed Won",AssignedRep:"Marcus",DateAdded:"2026-06-30",LastUpdated:"2026-07-10"},
+    {LeadID:4,Name:"Priya Anand",Email:"priya.a@mail.com",Source:"IG DM",Status:"Follow-up",AssignedRep:"Jordan",DateAdded:"2026-07-08",LastUpdated:"2026-07-22",NextAction:"2026-08-04"},
+    {LeadID:5,Name:"Malik Johnson",Email:"malik.j@mail.com",Source:"YouTube",Status:"New",AssignedRep:"Marcus",DateAdded:"2026-07-14",LastUpdated:"2026-07-14",NextAction:"2026-07-25"},
+    {LeadID:6,Name:"Owen Castillo",Email:"owen.c@mail.com",Source:"TikTok",Status:"Closed Won",AssignedRep:"Jordan",DateAdded:"2026-06-20",LastUpdated:"2026-07-01"},
+    {LeadID:7,Name:"Riley Grant",Email:"riley.g@mail.com",Source:"Discord",Status:"Closed Lost",AssignedRep:"Marcus",DateAdded:"2026-06-25",LastUpdated:"2026-06-29"},
+    {LeadID:8,Name:"Ellis Moore",Email:"ellis.m@mail.com",Source:"IG DM",Status:"Closed Won",AssignedRep:"Jordan",DateAdded:"2026-07-05",LastUpdated:"2026-07-12"},
+    {LeadID:9,Name:"Kai Nguyen",Email:"kai.n@mail.com",Source:"Automation: GLOWUP Reel",Status:"Closed Won",AssignedRep:"Marcus",DateAdded:"2026-07-11",LastUpdated:"2026-07-19"},
+    {LeadID:10,Name:"Aria Bell",Email:"aria.b@mail.com",Source:"Automation: GLOWUP Reel",Status:"Contacted",AssignedRep:"Jordan",DateAdded:"2026-07-21",LastUpdated:"2026-07-24"}
+  ],
+  payments:[
+    {LeadID:1,Tier:"Ascension Blueprint",TotalPrice:39,AmountPaid:39,Refunded:0,NextDueDate:""},
+    {LeadID:3,Tier:"Ascension Accelerator",TotalPrice:497,AmountPaid:200,Refunded:0,NextDueDate:"2026-08-01"},
+    {LeadID:6,Tier:"Ascension Academy",TotalPrice:1197,AmountPaid:1197,Refunded:0,NextDueDate:""},
+    {LeadID:7,Tier:"Ascension Blueprint",TotalPrice:39,AmountPaid:39,Refunded:39,NextDueDate:""},
+    {LeadID:8,Tier:"Ascension Accelerator",TotalPrice:497,AmountPaid:197,Refunded:0,NextDueDate:"2026-07-20"},
+    {LeadID:9,Tier:"Ascension Academy",TotalPrice:1197,AmountPaid:600,Refunded:0,NextDueDate:"2026-08-10"}
+  ],
+  autos:[
+    {CampaignID:"demo1",Campaign:"GLOWUP Reel",Keywords:"GLOWUP",Active:"Y",DMsSent:412,DMsFailed:6,LinkClicks:187,LastSynced:"2026-07-26"},
+    {CampaignID:"demo2",Campaign:"ASCEND Story",Keywords:"ASCEND, READY",Active:"Y",DMsSent:238,DMsFailed:2,LinkClicks:74,LastSynced:"2026-07-26"},
+    {CampaignID:"demo3",Campaign:"BLUEPRINT Launch",Keywords:"BLUEPRINT",Active:"N",DMsSent:590,DMsFailed:11,LinkClicks:203,LastSynced:"2026-07-14"}
+  ],
+  progress:[
+    {LeadID:1,Tier:"Ascension Blueprint",PctComplete:66,LastActivityDate:"2026-07-15"},
+    {LeadID:3,Tier:"Ascension Accelerator",PctComplete:22,LastActivityDate:"2026-07-10"},
+    {LeadID:6,Tier:"Ascension Academy",PctComplete:83,LastActivityDate:"2026-07-16"},
+    {LeadID:8,Tier:"Ascension Accelerator",PctComplete:15,LastActivityDate:"2026-07-13"},
+    {LeadID:9,Tier:"Ascension Academy",PctComplete:40,LastActivityDate:"2026-07-24"}
+  ],
+  dms:[
+    {DMID:1,Prospect:"Malik Johnson",Platform:"IG",Handle:"@malik.j",Rep:"Marcus",DateSent:"2026-07-14",Status:"Replied",LastFollowUp:"2026-07-15"},
+    {DMID:2,Prospect:"Chris Vaughn",Platform:"IG",Handle:"@cvaughn",Rep:"Marcus",DateSent:"2026-07-20",Status:"Sent",LastFollowUp:""},
+    {DMID:3,Prospect:"Dana Kowalski",Platform:"TikTok",Handle:"@danak",Rep:"Jordan",DateSent:"2026-07-01",Status:"Call Booked",LastFollowUp:"2026-07-05"},
+    {DMID:4,Prospect:"Leo Marsh",Platform:"IG",Handle:"@leomarsh",Rep:"Jordan",DateSent:"2026-07-18",Status:"In Conversation",LastFollowUp:"2026-07-23"},
+    {DMID:5,Prospect:"Nate Okafor",Platform:"Discord",Handle:"nate#0192",Rep:"Marcus",DateSent:"2026-07-10",Status:"Dead",LastFollowUp:"2026-07-16"}
+  ],
+  codes: Object.entries(DEMO_CODES).map(([Code,v])=>({Code,Role:v.role,Name:v.name,RepKey:v.repKey||"",Active:"Y"}))
+};
+
+let session = null;
+const TODAY = new Date().toISOString().slice(0,10);
+
+/* ---------- API LAYER (live mode) ----------
+   Everything goes over POST so the access code never appears in a URL,
+   browser history, or any server log. */
+async function apiGet(action){ return apiPost({ action }); }
+async function apiPost(payload){
+  const res = await fetch(SHEETS_API_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify({code: session.code, ...payload})});
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+
+/* ---------- IDLE AUTO-LOGOUT (30 min) ---------- */
+const IDLE_LIMIT_MS = 30*60*1000;
+let idleTimer = null;
+function resetIdle(){
+  if(!session) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(()=>{ if(session){ signOut(); toast("Signed out after 30 minutes of inactivity."); } }, IDLE_LIMIT_MS);
+}
+['click','keydown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev, resetIdle, {passive:true}));
+
+/* ---------- DERIVED / AUTO-CALCULATED FIELDS ---------- */
+function leadName(id){ const l = DB.leads.find(x=>String(x.LeadID)===String(id)); return l ? l.Name : "#"+id; }
+function leadRep(id){ const l = DB.leads.find(x=>String(x.LeadID)===String(id)); return l ? l.AssignedRep : ""; }
+function payRefunded(p){ return Number(p.Refunded||0); }
+function payNet(p){ return Number(p.AmountPaid) - payRefunded(p); }
+function payOwed(p){ return payRefunded(p) > 0 ? 0 : Math.max(0, Number(p.TotalPrice) - Number(p.AmountPaid)); }
+function payStatus(p){
+  if(payRefunded(p) > 0) return "Refunded";
+  const owed = payOwed(p);
+  if(owed === 0) return "Paid in Full";
+  if(Number(p.AmountPaid) > 0) return "Partial";
+  return "Unpaid";
+}
+function followUpDue(l){
+  return l.NextAction && l.NextAction <= TODAY && !["Closed Won","Closed Lost"].includes(l.Status);
+}
+function payOverdue(p){ return payOwed(p) > 0 && p.NextDueDate && p.NextDueDate < TODAY; }
+function progressPct(p){ return Math.max(0, Math.min(100, Math.round(Number(p.PctComplete)||0))); }
+function leadStale(l){
+  if(["Closed Won","Closed Lost"].includes(l.Status)) return false;
+  const ref = l.LastUpdated || l.DateAdded;
+  return (new Date(TODAY) - new Date(ref)) / 86400000 >= STALE_DAYS;
+}
+
+function visLeads(){ return session.role==="SALES_REP" ? DB.leads.filter(l=>l.AssignedRep===session.repKey) : DB.leads; }
+function visPayments(){
+  if(session.role!=="SALES_REP") return DB.payments;
+  const ids = visLeads().map(l=>String(l.LeadID));
+  return DB.payments.filter(p=>ids.includes(String(p.LeadID)));
+}
+function visDMs(){ return session.role==="SALES_REP" ? DB.dms.filter(d=>d.Rep===session.repKey) : DB.dms; }
+function visProgress(){
+  if(session.role!=="SALES_REP") return DB.progress;
+  const ids = visLeads().map(l=>String(l.LeadID));
+  return DB.progress.filter(p=>ids.includes(String(p.LeadID)));
+}
+
+/* ---------- LOGIN ---------- */
+async function attemptLogin(){
+  const raw = document.getElementById('access-code').value.trim().toUpperCase();
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  err.textContent = "";
+  if(!raw){ err.textContent="Enter your access code."; return; }
+
+  if(!USE_LIVE_DATA){
+    const entry = DEMO_CODES[raw];
+    if(!entry){ err.textContent = "Code not recognized. Check with your manager."; return; }
+    session = { code: raw, ...entry };
+    enterApp(); return;
+  }
+
+  btn.disabled = true; btn.textContent = "Signing in…";
+  try{
+    session = { code: raw };
+    const resp = await apiGet("whoami");
+    session.role = resp.role; session.name = resp.name; session.repKey = resp.repKey || null;
+    await refreshAll();
+    enterApp();
+  }catch(e){
+    session = null;
+    err.textContent = e.message || "Could not reach the database.";
+  }finally{
+    btn.disabled = false; btn.textContent = "Sign In";
+  }
+}
+document.getElementById('access-code').addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+document.getElementById('mode-tag').textContent = USE_LIVE_DATA ? "Live — connected to Google Sheets" : "Demo mode — sample data";
+if(USE_LIVE_DATA) document.getElementById('demo-codes').style.display = "none";
+
+async function refreshAll(){
+  DB.codes = [];  // never let demo codes linger in live mode
+  const [leads, payments, progress, dms, autos] = await Promise.all([apiGet("getLeads"), apiGet("getPayments"), apiGet("getCourseProgress"), apiGet("getDMs"), apiGet("getAutomation")]);
+  DB.leads = leads.data; DB.payments = payments.data; DB.progress = progress.data; DB.dms = dms.data; DB.autos = autos.data;
+  if(ROLE_RANK[session.role] >= ROLE_RANK.OWNER){
+    const codes = await apiGet("getAccessCodes"); DB.codes = codes.data;
+  }
+}
+
+function enterApp(){
+  resetIdle();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  const badge = document.getElementById('role-badge');
+  badge.textContent = ROLE_LABEL[session.role];
+  badge.style.background = ROLE_COLOR[session.role]+"22";
+  badge.style.color = ROLE_COLOR[session.role];
+  document.getElementById('user-name').textContent = session.name;
+  document.querySelectorAll('.nav-item[data-min-role]').forEach(item=>{
+    item.style.display = ROLE_RANK[session.role] >= ROLE_RANK[item.getAttribute('data-min-role')] ? 'flex' : 'none';
+  });
+  const sub = session.role==='SALES_REP' ? `Showing your leads only — signed in as ${session.name}`
+            : session.role==='MANAGER' ? `Showing the full team — signed in as ${session.name}`
+            : `All-seeing eye — every lead, every rep, every dollar`;
+  document.getElementById('dash-sub').textContent = sub;
+  document.getElementById('leads-sub').textContent = sub;
+  showPage('dashboard');
+}
+
+function signOut(){
+  session = null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('access-code').value = '';
+}
+
+/* ---------- PAGES ---------- */
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if(nav) nav.classList.add('active');
+  ({dashboard:renderDashboard, leads:renderLeads, payments:renderPayments,
+    progress:renderProgress, dm:renderDM, auto:renderAuto, team:renderTeam, admin:renderAdmin})[page]();
+}
+
+/* ---------- DM AUTOMATION (OpenReply) ---------- */
+const TIER_MAP = [
+  {ticket:"Low Ticket", tier:"Ascension Blueprint"},
+  {ticket:"Mid Ticket", tier:"Ascension Accelerator"},
+  {ticket:"High Ticket", tier:"Ascension Academy"}
+];
+function isAutoLead(l){ return String(l.Source||"").startsWith("Automation"); }
+
+function renderAuto(){
+  const autos = DB.autos;
+  const sent = autos.reduce((s,a)=>s+Number(a.DMsSent),0);
+  const clicks = autos.reduce((s,a)=>s+Number(a.LinkClicks),0);
+  const autoLeads = DB.leads.filter(isAutoLead);
+  const autoWon = autoLeads.filter(l=>l.Status==='Closed Won');
+  const ctr = sent ? Math.round(clicks/sent*100) : 0;
+
+  document.getElementById('auto-kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">DMs Sent (auto)</div><div class="value">${sent.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Link Clicks</div><div class="value gold">${clicks.toLocaleString()} <span style="font-size:13px;color:var(--muted);">(${ctr}% CTR)</span></div></div>
+    <div class="kpi"><div class="label">Leads Captured</div><div class="value">${autoLeads.length}</div></div>
+    <div class="kpi"><div class="label">Clients Closed</div><div class="value green">${autoWon.length}</div></div>`;
+
+  // Funnel bars, each stage as % of DMs sent
+  const stages = [
+    {label:"DMs Sent", n:sent, color:"var(--blue)"},
+    {label:"Clicked Link", n:clicks, color:"var(--gold)"},
+    {label:"Became a Lead", n:autoLeads.length, color:"var(--gold)"},
+    {label:"Closed as Client", n:autoWon.length, color:"var(--green)"}
+  ];
+  const max = Math.max(sent,1);
+  document.getElementById('auto-funnel').innerHTML = stages.map(s=>`
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:130px;font-size:12px;color:var(--muted);text-align:right;">${s.label}</div>
+      <div style="flex:1;height:26px;background:var(--panel-2);border-radius:6px;overflow:hidden;">
+        <div style="height:100%;width:${Math.max(s.n/max*100, s.n>0?2:0)}%;background:${s.color};border-radius:6px;display:flex;align-items:center;padding-left:10px;">
+          <span class="mono" style="font-size:12px;color:#0F1115;font-weight:600;">${s.n.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="width:56px;font-size:11px;color:var(--muted);" class="mono">${sent?Math.round(s.n/sent*1000)/10:0}%</div>
+    </div>`).join('');
+
+  document.querySelector('#auto-table tbody').innerHTML = autos.map(a=>{
+    const actr = Number(a.DMsSent) ? Math.round(Number(a.LinkClicks)/Number(a.DMsSent)*100) : 0;
+    return `<tr><td>${a.Campaign}</td><td class="mono" style="font-size:12px;">${a.Keywords}</td>
+    <td><span class="pill ${String(a.Active).toUpperCase()==='Y'?'paid':'unpaid'}">${String(a.Active).toUpperCase()==='Y'?'Live':'Paused'}</span></td>
+    <td class="mono">${Number(a.DMsSent).toLocaleString()}</td><td class="mono">${a.DMsFailed}</td>
+    <td class="mono">${Number(a.LinkClicks).toLocaleString()}</td><td class="mono">${actr}%</td>
+    <td class="mono">${a.LastSynced||"never"}</td></tr>`;}).join('');
+
+  // Tier conversion: automation-sourced leads joined to payments
+  const autoIds = autoWon.map(l=>String(l.LeadID));
+  document.querySelector('#auto-tier-table tbody').innerHTML = TIER_MAP.map(t=>{
+    const tp = DB.payments.filter(p=>autoIds.includes(String(p.LeadID)) && p.Tier===t.tier);
+    const rev = tp.reduce((s,p)=>s+Number(p.AmountPaid),0);
+    const owed = tp.reduce((s,p)=>s+payOwed(p),0);
+    return `<tr><td><span class="pill ${t.ticket==="High Ticket"?"won":t.ticket==="Mid Ticket"?"contacted":"new"}">${t.ticket}</span></td>
+    <td>${t.tier}</td><td>${tp.length}</td>
+    <td class="mono">$${rev.toLocaleString()}</td><td class="mono">$${owed.toLocaleString()}</td></tr>`;}).join('');
+}
+
+function pillLead(s){ return {"New":"new","Contacted":"contacted","Follow-up":"followup","Closed Won":"won","Closed Lost":"lost"}[s]||"new"; }
+function pillPay(s){ return {"Paid in Full":"paid","Partial":"partial","Unpaid":"unpaid","Refunded":"lost"}[s]||"unpaid"; }
+
+function statusDropdown(l){
+  const opts = ["New","Contacted","Follow-up","Closed Won","Closed Lost"]
+    .map(s=>`<option ${s===l.Status?"selected":""}>${s}</option>`).join("");
+  return `<select class="status-select" onchange="changeStatus(${l.LeadID}, this.value, this)">${opts}</select>`;
+}
+
+async function changeStatus(leadId, status, el){
+  el.disabled = true;
+  try{
+    if(USE_LIVE_DATA) await apiPost({action:"updateLeadStatus", leadId, status});
+    const l = DB.leads.find(x=>String(x.LeadID)===String(leadId));
+    l.Status = status; l.LastUpdated = TODAY;
+    if(USE_LIVE_DATA && status==="Closed Won") await refreshAll(); // backend auto-creates payment+progress rows
+    toast(`${leadName(leadId)} → ${status}`);
+    renderLeads(); renderDashboard();
+  }catch(e){ toast(e.message, true); }
+  finally{ el.disabled = false; }
+}
+
+async function changeNextAction(leadId, date, el){
+  el.disabled = true;
+  try{
+    if(USE_LIVE_DATA) await apiPost({action:"updateNextAction", leadId, nextAction: date});
+    const l = DB.leads.find(x=>String(x.LeadID)===String(leadId));
+    l.NextAction = date;
+    toast(`${l.Name} — follow-up set for ${date||"(cleared)"}`);
+    renderDashboard();
+  }catch(e){ toast(e.message, true); }
+  finally{ el.disabled = false; }
+}
+
+function renderDashboard(){
+  const leads = visLeads(), payments = visPayments();
+  const won = leads.filter(l=>l.Status==='Closed Won').length;
+  const owed = payments.reduce((s,p)=>s+payOwed(p),0);
+  const pif = payments.filter(p=>payStatus(p)==='Paid in Full').length;
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">Total Leads</div><div class="value">${leads.length}</div></div>
+    <div class="kpi"><div class="label">Closed Won</div><div class="value green">${won}</div></div>
+    <div class="kpi"><div class="label">Paid In Full</div><div class="value gold">${pif}</div></div>
+    <div class="kpi"><div class="label">Outstanding Balance</div><div class="value red">$${owed.toLocaleString()}</div></div>`;
+
+  // Needs Attention: overdue payments + stale leads (auto-flagged)
+  const flags = [];
+  payments.forEach(p=>{ if(payOverdue(p)) flags.push({who:leadName(p.LeadID), flag:'<span class="pill over">Payment Overdue</span>', detail:`$${payOwed(p).toLocaleString()} owed — was due ${p.NextDueDate}`, rep:leadRep(p.LeadID)}); });
+  leads.forEach(l=>{ if(followUpDue(l)) flags.push({who:l.Name, flag:'<span class="pill followup">Follow-up Due</span>', detail:`Next action was set for ${l.NextAction}`, rep:l.AssignedRep}); });
+  leads.forEach(l=>{ if(leadStale(l) && !followUpDue(l)) flags.push({who:l.Name, flag:'<span class="pill stale">Stale Lead</span>', detail:`No update since ${l.LastUpdated||l.DateAdded} (status: ${l.Status})`, rep:l.AssignedRep}); });
+  document.querySelector('#attention-table tbody').innerHTML = flags.length
+    ? flags.map(f=>`<tr><td>${f.who}</td><td>${f.flag}</td><td>${f.detail}</td><td>${f.rep}</td></tr>`).join('')
+    : `<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:18px;">Nothing needs attention. Clean board.</td></tr>`;
+
+  document.querySelector('#recent-leads-table tbody').innerHTML =
+    [...leads].sort((a,b)=>b.DateAdded.localeCompare(a.DateAdded)).slice(0,6).map(l=>`
+      <tr><td>${l.Name}</td><td>${l.Source}</td>
+      <td><span class="pill ${pillLead(l.Status)}">${l.Status}</span></td>
+      <td>${l.AssignedRep}</td><td class="mono">${l.DateAdded}</td></tr>`).join('');
+}
+
+function renderLeads(){
+  const filter = document.getElementById('leads-status-filter').value;
+  let leads = visLeads();
+  if(filter) leads = leads.filter(l=>l.Status===filter);
+  document.querySelector('#leads-table tbody').innerHTML = leads.map(l=>`
+    <tr><td>${l.Name}${followUpDue(l)?' <span class="pill followup">due</span>':leadStale(l)?' <span class="pill stale">stale</span>':''}</td>
+    <td class="mono" style="font-size:12px;">${l.Email||""}</td><td>${l.Source}</td>
+    <td>${statusDropdown(l)}</td><td>${l.AssignedRep}</td><td class="mono">${l.DateAdded}</td>
+    <td><input type="date" class="field" value="${l.NextAction||""}" onchange="changeNextAction(${l.LeadID}, this.value, this)" style="width:135px;"></td></tr>`).join('')
+    || `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px;">No leads match that filter.</td></tr>`;
+}
+
+function renderPayments(){
+  const payments = visPayments();
+  const collected = payments.reduce((s,p)=>s+payNet(p),0);
+  const refunded = payments.reduce((s,p)=>s+payRefunded(p),0);
+  const owed = payments.reduce((s,p)=>s+payOwed(p),0);
+  const pif = payments.filter(p=>payStatus(p)==='Paid in Full').length;
+  const over = payments.filter(payOverdue).length;
+  document.getElementById('payments-kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">Collected</div><div class="value green">$${collected.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Outstanding</div><div class="value red">$${owed.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Refunded</div><div class="value ${refunded?'red':''}">$${refunded.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Overdue</div><div class="value ${over?'red':''}">${over}</div></div>`;
+  document.querySelector('#payments-table tbody').innerHTML = payments.map(p=>{
+    const overdue = payOverdue(p);
+    return `<tr class="${overdue?'overdue':''}"><td>${leadName(p.LeadID)}</td><td>${p.Tier}</td>
+    <td class="mono">$${Number(p.TotalPrice).toLocaleString()}</td><td class="mono">$${Number(p.AmountPaid).toLocaleString()}</td>
+    <td class="mono">${payRefunded(p)?'$'+payRefunded(p).toLocaleString():'—'}</td>
+    <td class="mono">$${payOwed(p).toLocaleString()}</td>
+    <td><span class="pill ${overdue?'over':pillPay(payStatus(p))}">${overdue?'OVERDUE':payStatus(p)}</span></td>
+    <td class="mono">${p.NextDueDate||"—"}</td></tr>`;}).join('');
+}
+
+function renderProgress(){
+  const canEdit = ROLE_RANK[session.role] >= ROLE_RANK.MANAGER;
+  document.querySelector('#progress-table tbody').innerHTML = visProgress().map(p=>{
+    const pct = progressPct(p);
+    return `<tr><td>${leadName(p.LeadID)}</td><td>${p.Tier}</td>
+    <td><div class="tier-track"><div class="seg"><div class="fill" style="width:${pct}%"></div></div><span class="tier-label mono">${pct}%</span></div></td>
+    <td>${canEdit
+      ? `<input type="number" class="field" min="0" max="100" value="${pct}" style="width:70px;" onchange="changeProgress(${p.LeadID}, this.value, this)">`
+      : `<span class="mono">${pct}%</span>`}</td>
+    <td class="mono">${p.LastActivityDate}</td></tr>`;}).join('');
+}
+
+async function changeProgress(leadId, pct, el){
+  pct = Math.max(0, Math.min(100, Math.round(Number(pct)||0)));
+  el.disabled = true;
+  try{
+    if(USE_LIVE_DATA) await apiPost({action:"updateCourseProgress", leadId, pctComplete: pct});
+    const p = DB.progress.find(x=>String(x.LeadID)===String(leadId));
+    p.PctComplete = pct; p.LastActivityDate = TODAY;
+    toast(`${leadName(leadId)} → ${pct}% complete`);
+    renderProgress();
+  }catch(e){ toast(e.message, true); }
+  finally{ el.disabled = false; }
+}
+
+const DM_STATUSES = ["Sent","Replied","In Conversation","Call Booked","Dead"];
+function pillDM(s){ return {"Sent":"new","Replied":"contacted","In Conversation":"followup","Call Booked":"won","Dead":"lost"}[s]||"new"; }
+function dmReplied(s){ return ["Replied","In Conversation","Call Booked"].includes(s); }
+
+function renderDM(){
+  const all = visDMs();
+  const sent = all.length;
+  const replied = all.filter(d=>dmReplied(d.Status)).length;
+  const booked = all.filter(d=>d.Status==="Call Booked").length;
+  document.getElementById('dm-kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">DMs Sent</div><div class="value">${sent}</div></div>
+    <div class="kpi"><div class="label">Replies</div><div class="value gold">${replied}</div></div>
+    <div class="kpi"><div class="label">Reply Rate</div><div class="value ${replied/sent>=0.2?'green':''}">${sent?Math.round(replied/sent*100):0}%</div></div>
+    <div class="kpi"><div class="label">Calls Booked</div><div class="value green">${booked}</div></div>`;
+  document.getElementById('dm-sub').textContent = session.role==='SALES_REP'
+    ? `Your outreach — signed in as ${session.name}` : `Full team outreach — every send, every reply`;
+  const filter = document.getElementById('dm-status-filter').value;
+  let dms = filter ? all.filter(d=>d.Status===filter) : all;
+  document.querySelector('#dm-table tbody').innerHTML = dms.map(d=>{
+    const opts = DM_STATUSES.map(s=>`<option ${s===d.Status?"selected":""}>${s}</option>`).join("");
+    return `<tr><td>${d.Prospect}</td><td>${d.Platform}</td><td class="mono" style="font-size:12px;">${d.Handle||""}</td>
+    <td><select onchange="changeDMStatus(${d.DMID}, this.value, this)">${opts}</select></td>
+    <td>${d.Rep}</td><td class="mono">${d.DateSent}</td><td class="mono">${d.LastFollowUp||"—"}</td></tr>`;}).join('')
+    || `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px;">No DMs logged yet.</td></tr>`;
+}
+
+async function changeDMStatus(dmId, status, el){
+  el.disabled = true;
+  try{
+    if(USE_LIVE_DATA) await apiPost({action:"updateDMStatus", dmId, status});
+    const d = DB.dms.find(x=>String(x.DMID)===String(dmId));
+    d.Status = status; d.LastFollowUp = TODAY;
+    toast(`${d.Prospect} → ${status}`);
+    renderDM();
+  }catch(e){ toast(e.message, true); }
+  finally{ el.disabled = false; }
+}
+
+function openAddDM(){
+  const name = prompt("Prospect name / handle:");
+  if(!name) return;
+  const platform = prompt("Platform (IG / TikTok / YouTube / Discord):", "IG") || "IG";
+  addDMEntry(name, platform);
+}
+async function addDMEntry(name, platform){
+  try{
+    if(USE_LIVE_DATA) { await apiPost({action:"addDM", prospect:name, platform, handle:""}); await refreshAll(); }
+    else DB.dms.push({DMID: DB.dms.length?Math.max(...DB.dms.map(d=>d.DMID))+1:1, Prospect:name, Platform:platform,
+      Handle:"", Rep: session.repKey || session.name, DateSent:TODAY, Status:"Sent", LastFollowUp:""});
+    toast(`DM to ${name} logged.`);
+    renderDM();
+  }catch(e){ toast(e.message, true); }
+}
+
+function renderTeam(){
+  // Computed live from leads + payments + DMs — never manually maintained
+  const reps = [...new Set([...DB.leads.map(l=>l.AssignedRep), ...DB.dms.map(d=>d.Rep)].filter(Boolean))];
+  document.querySelector('#team-table tbody').innerHTML = reps.map(rep=>{
+    const rl = DB.leads.filter(l=>l.AssignedRep===rep);
+    const won = rl.filter(l=>l.Status==='Closed Won').length;
+    const ids = rl.map(l=>String(l.LeadID));
+    const rp = DB.payments.filter(p=>ids.includes(String(p.LeadID)));
+    const rev = rp.reduce((s,p)=>s+payNet(p),0);
+    const owed = rp.reduce((s,p)=>s+payOwed(p),0);
+    const rd = DB.dms.filter(d=>d.Rep===rep);
+    const rr = rd.length ? Math.round(rd.filter(d=>dmReplied(d.Status)).length/rd.length*100) : 0;
+    return `<tr><td>${rep}</td><td>${rl.length}</td><td>${won}</td>
+    <td>${rl.length?Math.round(won/rl.length*100):0}%</td>
+    <td class="mono">$${rev.toLocaleString()}</td><td class="mono">$${owed.toLocaleString()}</td>
+    <td class="mono" style="color:var(--gold);">$${Math.round(rev*COMMISSION_RATE).toLocaleString()}</td>
+    <td>${rd.length}</td><td>${rr}%</td></tr>`;}).join('');
+  const ch = document.getElementById('comm-head'); if(ch) ch.textContent = `Commission (${Math.round(COMMISSION_RATE*100)}%)`;
+}
+
+function renderAdmin(){
+  const rev = DB.payments.reduce((s,p)=>s+payNet(p),0);
+  const owed = DB.payments.reduce((s,p)=>s+payOwed(p),0);
+  document.getElementById('admin-kpi-row').innerHTML = `
+    <div class="kpi"><div class="label">Total Revenue Collected</div><div class="value green">$${rev.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Total Outstanding</div><div class="value red">$${owed.toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Active Codes</div><div class="value">${(DB.codes||[]).filter(c=>String(c.Active).toUpperCase()==='Y').length}</div></div>
+    <div class="kpi"><div class="label">Active Students</div><div class="value gold">${DB.progress.length}</div></div>`;
+  document.querySelector('#codes-table tbody').innerHTML = (DB.codes||[]).map(c=>`
+    <tr><td class="mono">${c.Code}</td><td>${c.Name}</td>
+    <td><span class="pill ${c.Role==='OWNER'?'won':c.Role==='MANAGER'?'contacted':'new'}">${ROLE_LABEL[c.Role]||c.Role}</span></td>
+    <td><span class="pill ${String(c.Active).toUpperCase()==='Y'?'paid':'unpaid'}">${String(c.Active).toUpperCase()==='Y'?'Active':'Revoked'}</span></td></tr>`).join('');
+  document.querySelector('#ledger-table tbody').innerHTML = DB.payments.map(p=>`
+    <tr><td>${leadName(p.LeadID)}</td><td>${leadRep(p.LeadID)}</td><td>${p.Tier}</td>
+    <td class="mono">$${Number(p.TotalPrice).toLocaleString()}</td><td class="mono">$${Number(p.AmountPaid).toLocaleString()}</td>
+    <td class="mono">$${payOwed(p).toLocaleString()}</td></tr>`).join('');
+  renderAudit();
+}
+
+async function renderAudit(){
+  let rows;
+  if(USE_LIVE_DATA){
+    try{ rows = (await apiGet("getAuditLog")).data; }catch(e){ rows = []; }
+  } else {
+    rows = [
+      {Timestamp:"2026-07-26 09:14:02",Who:"Marcus T.",Action:"LOGIN",Detail:"Signed in",Result:"OK"},
+      {Timestamp:"2026-07-26 09:16:44",Who:"Marcus T.",Action:"LEAD_STATUS",Detail:"Lead #5 → Contacted",Result:"OK"},
+      {Timestamp:"2026-07-26 11:02:19",Who:"unknown",Action:"LOGIN_FAILED",Detail:"Invalid code attempted",Result:"DENIED"},
+      {Timestamp:"2026-07-27 08:00:01",Who:"system",Action:"DIGEST",Detail:"Daily digest sent — 2 items",Result:"OK"},
+      {Timestamp:"2026-07-27 14:31:55",Who:"apply-form",Action:"LEAD_CAPTURED",Detail:"Aria Bell via Automation: GLOWUP Reel",Result:"OK"}
+    ];
+  }
+  document.querySelector('#audit-table tbody').innerHTML = [...rows].reverse().map(r=>`
+    <tr><td class="mono" style="font-size:12px;">${r.Timestamp}</td><td>${r.Who}</td>
+    <td class="mono" style="font-size:12px;">${r.Action}</td><td>${r.Detail}</td>
+    <td><span class="pill ${r.Result==='OK'?'paid':'unpaid'}">${r.Result}</span></td></tr>`).join('');
+}
+
+/* ---------- ADD LEAD ---------- */
+function openAddLead(){
+  const wrap = document.getElementById('nl-rep-wrap');
+  if(ROLE_RANK[session.role] >= ROLE_RANK.MANAGER){
+    wrap.style.display = 'block';
+    let reps;
+    if(session.role === 'OWNER' && DB.codes.length){
+      reps = DB.codes.filter(c=>c.Role==='SALES_REP' && String(c.Active).toUpperCase()==='Y')
+                     .map(c=>({key:c.RepKey, label:c.Name}));
+    } else {
+      // Managers can't read the AccessCodes tab, so derive reps from live data
+      reps = [...new Set([...DB.leads.map(l=>l.AssignedRep), ...DB.dms.map(d=>d.Rep)].filter(Boolean))]
+             .map(r=>({key:r, label:r}));
+    }
+    document.getElementById('nl-rep').innerHTML = `<option value="">Auto-assign (round robin)</option>` +
+      reps.map(r=>`<option value="${r.key}">${r.label}</option>`).join('');
+  } else wrap.style.display = 'none';
+  document.getElementById('modal-backdrop').classList.add('active');
+}
+function closeAddLead(){ document.getElementById('modal-backdrop').classList.remove('active'); }
+
+async function saveLead(){
+  const name = document.getElementById('nl-name').value.trim();
+  const email = document.getElementById('nl-email').value.trim();
+  if(!name){ toast("Lead needs a name.", true); return; }
+  const btn = document.getElementById('nl-save'); btn.disabled = true;
+  const payload = { action:"addLead", name, email,
+    phone: document.getElementById('nl-phone').value.trim(),
+    source: document.getElementById('nl-source').value,
+    assignedRep: (document.getElementById('nl-rep-wrap').style.display!=='none') ? document.getElementById('nl-rep').value : "" };
+  try{
+    if(USE_LIVE_DATA){ await apiPost(payload); await refreshAll(); }
+    else {
+      const reps = DB.codes.filter(c=>c.Role==='SALES_REP').map(c=>c.RepKey);
+      const rep = session.role==='SALES_REP' ? session.repKey
+        : (payload.assignedRep || reps[DB.leads.length % reps.length]); // round robin demo
+      DB.leads.push({LeadID: Math.max(...DB.leads.map(l=>l.LeadID))+1, Name:name, Email:email,
+        Source:payload.source, Status:"New", AssignedRep:rep, DateAdded:TODAY, LastUpdated:TODAY});
+    }
+    closeAddLead();
+    ['nl-name','nl-email','nl-phone'].forEach(id=>document.getElementById(id).value='');
+    toast(`${name} added to the pipeline.`);
+    renderLeads(); renderDashboard();
+  }catch(e){ toast(e.message, true); }
+  finally{ btn.disabled = false; }
+}
+
+function toast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = isError ? 'error' : '';
+  t.style.display = 'block';
+  clearTimeout(t._timer); t._timer = setTimeout(()=>t.style.display='none', 3200);
+}
+
+/* ---------- PUBLIC APPLY SCREEN (route: #apply) ---------- */
+function routeView(){
+  const isApply = location.hash === "#apply";
+  document.getElementById('apply-screen').style.display = isApply ? 'flex' : 'none';
+  document.getElementById('login-screen').style.display = (isApply || session) ? 'none' : 'flex';
+  if(isApply && session){ document.getElementById('app').classList.remove('active'); }
+}
+window.addEventListener('hashchange', routeView);
+routeView();
+
+async function submitApply(){
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const msg = document.getElementById('apply-msg');
+  const btn = document.getElementById('f-submit');
+  const CAMPAIGN = new URLSearchParams(location.search).get("c") || "";
+  msg.textContent = ""; msg.style.color = "";
+  if(!name || !email){ msg.textContent = "Name and email are required."; msg.style.color = "var(--red)"; return; }
+  btn.disabled = true; btn.textContent = "Submitting…";
+  try{
+    const res = await fetch(window.ASCENSION_CONFIG.SHEETS_API_URL, { method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({ action:"captureLead", formKey: window.ASCENSION_CONFIG.FORM_KEY, name, email,
+        phone: document.getElementById('f-phone').value.trim(),
+        website: document.getElementById('f-website').value,
+        source: CAMPAIGN ? ("Automation: " + CAMPAIGN) : document.getElementById('f-source').value })});
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    msg.textContent = "You're in. The team will reach out shortly."; msg.style.color = "var(--green)";
+    ['f-name','f-email','f-phone'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){
+    msg.textContent = "Something went wrong — try again or DM us."; msg.style.color = "var(--red)";
+  }finally{
+    btn.disabled = false; btn.textContent = "Apply Now";
+  }
+}
+</script>
+</body>
+</html>
